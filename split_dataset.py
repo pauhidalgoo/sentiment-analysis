@@ -14,7 +14,7 @@ y = np.array([1 for _ in range(len(ids_positive))] + [0 for _ in range(len(ids_n
 
 from sklearn.model_selection import train_test_split
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, shuffle=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42, shuffle=True, stratify=y)
 
 # Save the datasets
 with open('./data/X_train.json', 'w') as file:
