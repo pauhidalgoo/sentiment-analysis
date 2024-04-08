@@ -26,16 +26,17 @@ class UKB:
     def personalized_pagerank_w2w(self, target_word, context_words):
         graph = self.ukb_graph
         for word, concepts in context_words.items():
-            if word != target_word:
-                graph.add_node(word, type='word')
-                for concept in concepts:
-                    graph.add_edge(word, concept)
-        personalization = {node: 1.0 for node in graph.nodes() if graph.nodes[node].get('type') == 'word'} if len(context_words) != 0 else None
-        pr = nx.pagerank(graph, max_iter = 30, personalization=personalization)
-
+            graph.add_node(word, type='word')
+            for concept in concepts:
+                graph.add_edge(word, concept)
+        personalization = {node: 10.0 for node in graph.nodes() if graph.nodes[node].get('type') == 'word' and node != target_word} if len(context_words) != 0 else None
+        print(personalization)
+        pr = nx.pagerank(graph, max_iter = 50, personalization=personalization)
+        for s in context_words[target_word]:
+            print(s, pr.get(s, "queva"))
         for word, concepts in context_words.items():
             if word != target_word:
-                graph.remove_node(word, type='word')
+                graph.remove_node(word)
         return pr
 
     def disambiguate_context(self, context_words, method = 1, freq = None, use_lesk=False):
@@ -132,11 +133,13 @@ if __name__ == "__main__":
     example_sentence = "find the solution to this problem"
     context_words = extract_context_words(example_sentence)
 
-    frequencies = load_sense_frequencies("word_sense_frequencies_semcor.json")
+    frequencies = load_sense_frequencies("./data/word_sense_frequencies_semcor.json")
     ukb = UKB(ukb_graph)
-    disambiguated_senses = ukb.disambiguate_context(context_words, method=2, freq=frequencies, use_lesk=True)
+    disambiguated_senses = ukb.disambiguate_context(context_words, method=3, freq=None, use_lesk=False)
 
     print(wn.synset("solution.n.05").definition())
     for word, sense in disambiguated_senses.items():
         print(f"Word: {word}, Sense: {sense}")
         print(wn.synset(sense).definition())
+
+    print(wn.synset("05661668-n"))
