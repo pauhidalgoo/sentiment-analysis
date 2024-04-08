@@ -1,6 +1,7 @@
 import networkx as nx
 import json
 import spacy
+from nltk.wsd import lesk
 nlp = spacy.load("en_core_web_sm")
 class UKB:
     def __init__(self, ukb_graph):
@@ -10,23 +11,34 @@ class UKB:
         return nx.pagerank(subgraph)
 
     def personalized_pagerank(self, context_words):
-        graph = self.ukb_graph.copy()
-        for word in context_words:
+        graph = self.ukb_graph
+        for word in context_words.keys():
+            print(word)
             graph.add_node(word, type='word')
             for concept in context_words[word]:
                 graph.add_edge(word, concept)
-        return nx.pagerank(graph)
+        personalization = {node: 1.0 for node in graph.nodes() if graph.nodes[node].get('type') == 'word'} if len(context_words) != 0 else None
+        pr = nx.pagerank(graph, max_iter = 50, personalization=personalization)
+        for word in context_words:
+            graph.remove_node(word)
+        return pr
 
     def personalized_pagerank_w2w(self, target_word, context_words):
-        graph = self.ukb_graph.copy()
+        graph = self.ukb_graph
         for word, concepts in context_words.items():
             if word != target_word:
                 graph.add_node(word, type='word')
                 for concept in concepts:
                     graph.add_edge(word, concept)
-        return nx.pagerank(graph)
+        personalization = {node: 1.0 for node in graph.nodes() if graph.nodes[node].get('type') == 'word'} if len(context_words) != 0 else None
+        pr = nx.pagerank(graph, max_iter = 30, personalization=personalization)
 
-    def disambiguate_context(self, context_words, method = 1):
+        for word, concepts in context_words.items():
+            if word != target_word:
+                graph.remove_node(word, type='word')
+        return pr
+
+    def disambiguate_context(self, context_words, method = 1, freq = None, use_lesk=False):
         disambiguated_senses = {}
         if method == 1:
             subgraph = self.ukb_graph.subgraph([concept for concepts in context_words.values() for concept in concepts])
@@ -39,12 +51,18 @@ class UKB:
                 pagerank_scores[target_word] = self.personalized_pagerank_w2w(target_word, context_words)
         else:
             return None
-
+        
         for word, concepts in context_words.items():
             # Choose the concept with the highest PageRank score from each method
             if concepts != []:
                 if method == 1 or method == 2:
-                    sense = max(concepts, key=lambda x: pagerank_scores.get(x, 0))
+                    if freq != None:
+                        pagerank_scores_new = {key: pagerank_scores.get(key, 0)+0.1*freq[word.lower()].get(f"Lemma('{key}.{word.lower()}')", 0.1) for key in concepts}
+                        print(pagerank_scores_new)
+                    sense = max(concepts, key=lambda x: pagerank_scores_new.get(x, 0))
+                    if use_lesk:
+                        if pagerank_scores.get(sense, 0) == 0:
+                            sense = lesk(context_words, word).name()
                 elif method == 3:
                     sense = max(concepts, key=lambda x: pagerank_scores.get(word, {}).get(x, 0))
                 disambiguated_senses[word] = sense
@@ -97,20 +115,28 @@ def load_ukb_graph(file_path):
 def load_context_words(file_path):
     with open(file_path, "r") as f:
         return json.load(f)
+    
+def load_sense_frequencies(file_path):
+    with open(file_path, "r") as f:
+        return json.load(f)
 
 if __name__ == "__main__":
+    import nltk
     try:
         ukb_graph = load_ukb_graph("ukb_graph.gexf")
+        ukb_graph = nx.Graph(ukb_graph)
     except:
         print("Creating graph...")
         ukb_graph = build_ukb_graph()
         nx.write_gexf(ukb_graph, "ukb_graph.gexf")
-    example_sentence = "i work at google"
+    example_sentence = "find the solution to this problem"
     context_words = extract_context_words(example_sentence)
 
+    frequencies = load_sense_frequencies("word_sense_frequencies_semcor.json")
     ukb = UKB(ukb_graph)
-    disambiguated_senses = ukb.disambiguate_context(context_words, method=1)
+    disambiguated_senses = ukb.disambiguate_context(context_words, method=2, freq=frequencies, use_lesk=True)
 
+    print(wn.synset("solution.n.05").definition())
     for word, sense in disambiguated_senses.items():
         print(f"Word: {word}, Sense: {sense}")
         print(wn.synset(sense).definition())
