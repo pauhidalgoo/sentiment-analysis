@@ -59,7 +59,7 @@ class UKB:
                     if freq != None:
                         pagerank_scores_new = {key: pagerank_scores.get(key, 0)+0.1*freq[word.lower()].get(f"Lemma('{key}.{word.lower()}')", 0.1) for key in concepts}
                         print(pagerank_scores_new)
-                    sense = max(concepts, key=lambda x: pagerank_scores_new.get(x, 0))
+                    sense = max(concepts, key=lambda x: pagerank_scores.get(x, 0))
                     if use_lesk:
                         if pagerank_scores.get(sense, 0) == 0:
                             sense = lesk(context_words, word).name()
