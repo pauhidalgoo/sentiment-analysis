@@ -20,26 +20,26 @@ X_train_no_val, X_val, y_train_no_val, y_val = train_test_split(X_train, y_train
 
 
 # Save the datasets
-with open('./data/X_train.json', 'w') as file:
+with open('./data/original_data/X_train.json', 'w') as file:
     json.dump(X_train, file)
 
-with open('./data/X_test.json', 'w') as file:
+with open('./data/original_data/X_test.json', 'w') as file:
 	json.dump(X_test, file)
 
-with open('./data/y_train.json', 'w') as file:	
+with open('./data/original_data/y_train.json', 'w') as file:	
 	json.dump(y_train.tolist(), file)
 
-with open('./data/y_test.json', 'w') as file:
+with open('./data/original_data/y_test.json', 'w') as file:
 	json.dump(y_test.tolist(), file)
 
-with open('./data/X_train_no_val.json', 'w') as file:
+with open('./data/original_data/X_train_no_val.json', 'w') as file:
 	json.dump(X_train_no_val, file)
 
-with open('./data/X_val.json', 'w') as file:
+with open('./data/original_data/X_val.json', 'w') as file:
 	json.dump(X_val, file)
 
-with open('./data/y_train_no_val.json', 'w') as file:
+with open('./data/original_data/y_train_no_val.json', 'w') as file:
 	json.dump(y_train_no_val.tolist(), file)
 
-with open('./data/y_val.json', 'w') as file:
+with open('./data/original_data/y_val.json', 'w') as file:
 	json.dump(y_val.tolist(), file)
