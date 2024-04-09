@@ -31,7 +31,8 @@ class UKB:
                 graph.add_edge(word, concept)
         personalization = {n: 10.0 for node in graph.nodes() for n in graph.neighbors(node)  if graph.nodes[node].get('type') == 'word'} if len(context_words) != 0 else None
         starting = {node: 10.0 for node in graph.nodes() if graph.nodes[node].get('type') == 'word'} if len(context_words) != 0 else None
-        
+        if personalization != None and len(personalization) == 0:
+            personalization = None
         pr = nx.pagerank(graph, max_iter = 30, personalization=personalization, nstart=starting)
         for word in context_words:
             graph.remove_node(word)
@@ -40,6 +41,8 @@ class UKB:
     def personalized_pagerank_w2w(self, target_word, context_words, starting):
         graph = self.ukb_graph
         personalization = {n: 10.0 for node in graph.nodes() for n in graph.neighbors(node)  if graph.nodes[node].get('type') == 'word' and node != target_word} if len(context_words) > 1 else None
+        if personalization != None and len(personalization) == 0:
+            personalization = None
         pr = nx.pagerank(graph, max_iter = 30, personalization=personalization, nstart=starting)
         return pr
 
