@@ -2,15 +2,56 @@ import networkx as nx
 import json
 import spacy
 from nltk.wsd import lesk
+import networkx as nx
+from nltk.corpus import wordnet as wn
+import json
+import nltk
+from typing import Dict, List, Optional, Any
+
 nlp = spacy.load("en_core_web_sm")
 class UKB:
+    """
+    UKB implementation lass for word sense disambiguation.
+
+    Args:
+        ukb_graph (nx.Graph): Graph representing the knowledge base.
+
+    Attributes:
+        ukb_graph (nx.Graph): Graph representing the knowledge base.
+
+    Methods:
+        traditional_pagerank: Computes traditional PageRank.
+        subgraph_pagerank: Computes PageRank using a subgraph.
+        personalized_pagerank: Computes personalized PageRank.
+        personalized_pagerank_w2w: Computes personalized PageRank from word to word.
+        disambiguate_context: Disambiguates word senses using various methods.
+    """
+
     def __init__(self, ukb_graph):
         self.ukb_graph = ukb_graph
 
-    def traditional_pagerank(self, subgraph):
+    def traditional_pagerank(self, subgraph: nx.Graph) -> Dict[str, float]:
+        """
+        Compute traditional PageRank.
+
+        Args:
+            subgraph (nx.Graph): Subgraph for which PageRank is computed.
+
+        Returns:
+            Dict[str, float]: PageRank scores for nodes in the subgraph.
+        """
         return nx.pagerank(subgraph)
     
-    def subgraph_pagerank(self,context_words):
+    def subgraph_pagerank(self,context_words: Dict[str, List[str]]) -> Dict[str, float]:
+        """
+        Compute PageRank using a subgraph based on context words. Uses the source paths to create the subgraph.
+
+        Args:
+            context_words (Dict[str, List[str]]): Dictionary containing words and associated concepts.
+
+        Returns:
+            Dict[str, float]: PageRank scores for nodes in the disambiguation graph.
+        """
         disambiguation_graph = nx.Graph()
         for word, concepts in context_words.items():
             for concept in concepts:
@@ -23,7 +64,16 @@ class UKB:
                                 disambiguation_graph.add_edges_from(zip(shortest_path[:-1], shortest_path[1:]))
         return nx.pagerank(disambiguation_graph)
     
-    def personalized_pagerank(self, context_words):
+    def personalized_pagerank(self, context_words: Dict[str, List[str]]) -> Dict[str, float]:
+        """
+        Compute personalized PageRank, starting also at word nodes.
+
+        Args:
+            context_words (Dict[str, List[str]]): Dictionary containing words and associated concepts.
+
+        Returns:
+            Dict[str, float]: Personalized PageRank scores for nodes in the knowledge base.
+        """
         graph = self.ukb_graph
         for word in context_words.keys():
             graph.add_node(word, type='word')
@@ -38,7 +88,18 @@ class UKB:
             graph.remove_node(word)
         return pr
 
-    def personalized_pagerank_w2w(self, target_word, context_words, starting):
+    def personalized_pagerank_w2w(self, target_word: str, context_words:Dict[str, List[str]], starting: Dict[str, float]) -> Dict[str, float]:
+        """
+        Compute personalized PageRank from word to word.
+
+        Args:
+            target_word (str): Target word for which personalized PageRank is computed.
+            context_words (Dict[str, List[str]]): Dictionary containing words and associated concepts.
+            starting (Dict[str, float]): Starting node weights for personalized PageRank.
+
+        Returns:
+            Dict[str, float]: Personalized PageRank scores for nodes in the knowledge base.
+        """
         graph = self.ukb_graph
         personalization = {n: 10.0 for node in graph.nodes() for n in graph.neighbors(node)  if graph.nodes[node].get('type') == 'word' and node != target_word} if len(context_words) > 1 else None
         if personalization != None and len(personalization) == 0:
@@ -46,7 +107,19 @@ class UKB:
         pr = nx.pagerank(graph, max_iter = 30, personalization=personalization, nstart=starting)
         return pr
 
-    def disambiguate_context(self, context_words, method = 1, freq = None, use_lesk=False):
+    def disambiguate_context(self, context_words: Dict[str, List[str]], method: int = 1, freq: Optional[Dict[str, Dict[str, Any]]] = None, use_lesk: bool = False) -> Dict[str, Optional[str]]:
+        """
+        Disambiguate word senses using various methods.
+
+        Args:
+            context_words (Dict[str, List[str]]): Dictionary containing words and associated concepts.
+            method (int): Disambiguation method (0: Traditional PageRank, 1: Subgraph PageRank, 2: Personalized PageRank, 3: Personalized PageRank word to word). Defaults to 1.
+            freq (Optional[Dict[str, Dict[str, Any]]]): Frequency information for sense disambiguation. Defaults to None.
+            use_lesk (bool): Whether to use Lesk algorithm for disambiguation. Defaults to False.
+
+        Returns:
+            Dict[str, Optional[str]]: Disambiguated word senses.
+        """
         disambiguated_senses = {}
         if method == 0:
             subgraph = self.ukb_graph.subgraph([concept for concepts in context_words.values() for concept in concepts])
@@ -89,12 +162,13 @@ class UKB:
 
         return disambiguated_senses
 
-import networkx as nx
-from nltk.corpus import wordnet as wn
-import json
-import nltk
+def build_ukb_graph() -> nx.Graph:
+    """
+    Build the graph.
 
-def build_ukb_graph():
+    Returns:
+        nx.Graph: Graph representing the knowledge base.
+    """
     ukb_graph = nx.Graph()
 
     for synset in wn.all_synsets():
@@ -115,7 +189,8 @@ def build_ukb_graph():
     return ukb_graph
 
 postags = {'ADV':"r", "NOUN":"n", "VERB":"v", "ADJ":"a", "PROPN":"n"}
-def extract_context_words(sentence, nlp = nlp):
+
+def extract_context_words(sentence:str, nlp = nlp)-> Dict[str, List[str]]:
     # Assuming sentence is preprocessed and tokenized
     # Extract nouns, verbs, adjectives, and adverbs from the sentence
     # For each word, find associated synsets in WordNet
@@ -127,14 +202,41 @@ def extract_context_words(sentence, nlp = nlp):
             context_words[word] = [synset.name() for synset in synsets]
     return context_words
 
-def load_ukb_graph(file_path):
+def load_ukb_graph(file_path:str) -> nx.Graph:
+    """
+    Load the ukb graph from file.
+
+    Args:
+        file_path (str): Path to the file containing the graph.
+
+    Returns:
+        nx.Graph: Graph representing the knowledge base.
+    """
     return nx.read_gexf(file_path)
 
-def load_context_words(file_path):
+def load_context_words(file_path:str) -> Dict[str, List[str]]:
+    """
+    Load context words from file.
+
+    Args:
+        file_path (str): Path to the file containing context words.
+
+    Returns:
+        Dict[str, List[str]]: Dictionary containing words and associated concepts.
+    """
     with open(file_path, "r") as f:
         return json.load(f)
     
-def load_sense_frequencies(file_path):
+def load_sense_frequencies(file_path:str) -> Dict[str, Dict[str, Any]]:
+    """
+    Load sense frequencies from file.
+
+    Args:
+        file_path (str): Path to the file containing sense frequencies.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Dictionary containing sense frequencies.
+    """
     with open(file_path, "r") as f:
         return json.load(f)
 
@@ -150,7 +252,7 @@ if __name__ == "__main__":
     example_sentence = "mix the solution to this experiment"
     context_words = extract_context_words(example_sentence)
 
-    frequencies = load_sense_frequencies("./data/word_sense_frequencies_semcor.json")
+    frequencies = load_sense_frequencies("./data/synsets/word_sense_frequencies_semcor.json")
     ukb = UKB(ukb_graph)
     disambiguated_senses = ukb.disambiguate_context(context_words, method=1, freq=None, use_lesk=False)
 
